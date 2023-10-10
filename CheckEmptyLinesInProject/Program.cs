@@ -3,45 +3,31 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace CheckEmptyLinesInProject
+class Program
 {
-    class Program
+    static async Task Main(string[] args)
     {
-        static async Task Main(string[] args)
+        string projectPath = args[0];  // Get the project path from the command-line arguments.
+
+        string[] csFiles = Directory.GetFiles(projectPath, "*.cs", SearchOption.AllDirectories); // Find all C# files in the project directory and its subdirectories.
+
+        foreach (var file in csFiles)
         {
-            if (args.Length == 0)
+            string text = await File.ReadAllTextAsync(file);  // Read the file content.
+
+            // Regex to identify more than two consecutive line breaks, preserving the indentation (if any) of the subsequent line.
+            var regex = new Regex(@"(?:\r?\n|\r){3,}(?=\s*[\S])");
+
+            // Replace instances of the pattern with a single line break, keeping the indentation of the subsequent line.
+            string newText = regex.Replace(text, Environment.NewLine + Environment.NewLine);
+
+            if (!text.Equals(newText))
             {
-                Console.WriteLine("Please provide the path to the .NET project.");
-                return;
-            }
-
-            string projectPath = args[0];
-
-            if (!Directory.Exists(projectPath))
-            {
-                Console.WriteLine("Provided path does not exist.");
-                return;
-            }
-
-            string[] csFiles = Directory.GetFiles(projectPath, "*.cs", SearchOption.AllDirectories);
-
-            var regex = new Regex(@"(\r?\n\s*){3,}", RegexOptions.Compiled);
-
-            foreach (var file in csFiles)
-            {
-                var content = await File.ReadAllTextAsync(file);
-                if (regex.IsMatch(content))
-                {
-                    Console.WriteLine($"File {file} has more than two consecutive empty lines. Cleaning up...");
-
-                    // Replacing more than two consecutive empty lines with just two.
-                    var cleanedContent = regex.Replace(content, "\n\n");
-
-                    // Write the cleaned content back to the file.
-                    await File.WriteAllTextAsync(file, cleanedContent);
-                    Console.WriteLine($"Cleaned up {file}.");
-                }
+                await File.WriteAllTextAsync(file, newText);  // Write the modified content back to the file.
+                Console.WriteLine($"Modified file: {file}"); // Log the modified file to the console.
             }
         }
+
+        Console.WriteLine("Processing completed.");
     }
 }
